@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YouTube Video Planner</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --bg: #F7F3FF; --card: #FFFFFF; --text: #3B2F63; --muted: #7A6BA8; --line: #ECE4FA; --border: #D9CCF5;
+    --h1: #CDBBF2; --h2: #D6D3F8; --h3: #E8CFF1;
+    --r-title: #F1EAFD; --r-visual: #EAEBFB; --r-script: #F7EDFA; --r-extra: #EFE9FB;
+    --s-idea: #E4DAFB; --s-draft: #F6D9EE; --s-ready: #D5E0FA; --s-done: #D6F0E6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1B1530; --card: #241C3F; --text: #EDE6FF; --muted: #B7A8E0; --line: #3A2F5E; --border: #4A3D78;
+      --h1: #4B3A86; --h2: #3F4585; --h3: #5A3D7D;
+      --r-title: #2A2148; --r-visual: #262349; --r-script: #2D2145; --r-extra: #292248;
+      --s-idea: #4A3C80; --s-draft: #6B3F73; --s-ready: #3B4F85; --s-done: #2F6552;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1B1530; --card: #241C3F; --text: #EDE6FF; --muted: #B7A8E0; --line: #3A2F5E; --border: #4A3D78;
+    --h1: #4B3A86; --h2: #3F4585; --h3: #5A3D7D;
+    --r-title: #2A2148; --r-visual: #262349; --r-script: #2D2145; --r-extra: #292248;
+    --s-idea: #4A3C80; --s-draft: #6B3F73; --s-ready: #3B4F85; --s-done: #2F6552;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; padding: 32px 16px; background: var(--bg); color: var(--text); font-family: Georgia, "Times New Roman", serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-weight: normal; font-size: 28px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
+  .scroll { overflow-x: auto; border-radius: 18px; border: 2px solid var(--border); background: var(--card); }
+  table { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; }
+  th { background: linear-gradient(90deg, var(--h1), var(--h2), var(--h3)); text-align: left; padding: 14px 16px; font-size: 16px; font-weight: normal; }
+  td { padding: 10px 14px; font-size: 15px; line-height: 1.55; vertical-align: top; border-top: 1px solid var(--line); }
+  col.c-part { width: 170px; } col.c-notes { width: 24%; } col.c-status { width: 130px; }
+  td.part { font-weight: bold; padding-top: 14px; }
+  .cell { min-height: 3.2em; padding: 4px 6px; margin: -4px -6px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
+  .cell.big { min-height: 6.5em; }
+  .cell:focus { background: rgba(255,255,255,.55); box-shadow: 0 0 0 2px var(--h1); }
+  :root[data-theme="dark"] .cell:focus { background: rgba(255,255,255,.06); }
+  .cell:empty::before { content: attr(data-ph); color: var(--muted); opacity: .6; }
+  tr.title td { background: var(--r-title); } tr.visual td { background: var(--r-visual); }
+  tr.script td { background: var(--r-script); } tr.extra td { background: var(--r-extra); }
+  .pill { font: inherit; font-size: 14px; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
+  .pill:hover { filter: brightness(.96); } .pill:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .s0 { background: var(--s-idea); } .s1 { background: var(--s-draft); } .s2 { background: var(--s-ready); } .s3 { background: var(--s-done); }
+  .bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+  .bar button { font: inherit; font-size: 13px; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>✦ YouTube Video Planner ☾</h1>
+  <p class="sub">Click any draft or note cell to write. Click a status to switch it: Idea, Drafting, Ready, Done.</p>
+  <div class="scroll">
+    <table>
+      <colgroup><col class="c-part"><col><col class="c-notes"><col class="c-status"></colgroup>
+      <thead><tr><th>Part</th><th>Draft / Idea</th><th>Notes</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="bar"><span id="saved">Saved in this browser as you type.</span><button id="clear" type="button">Clear everything</button></div>
+</div>
+<script>
+  var STATUS = ["💡 Idea", "✍️ Drafting", "✅ Ready", "🌙 Done"];
+  var ROWS = [
+    ["title","☾ Title idea 1","",0,false], ["title","☾ Title idea 2","",0,false], ["title","☾ Title idea 3","",0,false],
+    ["title","✦ Chosen title","",0,false],
+    ["visual","✧ Thumbnail concept","Text, expression, colors",0,false], ["visual","✧ Thumbnail text","Max 3–4 words",0,false],
+    ["script","★ Hook (0:00–0:15)","Open with the payoff or a question",1,true],
+    ["script","★ Intro","Who it's for, what they'll get",1,true],
+    ["script","☆ Main point 1","",1,true], ["script","☆ Main point 2","",1,true], ["script","☆ Main point 3","",1,true],
+    ["script","✦ Call to action","Subscribe, comment prompt, next video",1,true],
+    ["script","☾ Outro","",1,true],
+    ["extra","✺ B-roll / visuals","Shots to film or source",0,true], ["extra","♪ Music / sound","",0,false],
+    ["extra","✎ Description","First 2 lines matter most",0,true], ["extra","⌗ Tags / keywords","",0,false],
+    ["extra","☄ Upload date","",0,false]
+  ];
+  var KEY = "yt-planner-v1", state = { t: {}, n: {}, s: {} };
+  try { var raw = localStorage.getItem(KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
+  state.t = state.t || {}; state.n = state.n || {}; state.s = state.s || {};
+  var timer;
+  function save() {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); document.getElementById("saved").textContent = "Saved in this browser."; }
+      catch (e) { document.getElementById("saved").textContent = "Couldn't save in this browser."; }
+    }, 300);
+  }
+  var tbody = document.getElementById("rows");
+  ROWS.forEach(function (r, i) {
+    var tr = document.createElement("tr"); tr.className = r[0];
+    var td1 = document.createElement("td"); td1.className = "part"; td1.textContent = r[1];
+    var td2 = document.createElement("td"), d = document.createElement("div");
+    d.className = "cell" + (r[4] ? " big" : ""); d.contentEditable = "true"; d.setAttribute("data-ph", "Write your draft here…");
+    d.setAttribute("role", "textbox"); d.setAttribute("aria-multiline", "true"); d.setAttribute("aria-label", r[1] + " draft");
+    d.textContent = state.t[i] || ""; d.addEventListener("input", function () { state.t[i] = d.innerText; save(); }); td2.appendChild(d);
+    var td3 = document.createElement("td"), n = document.createElement("div");
+    n.className = "cell"; n.contentEditable = "true"; n.setAttribute("data-ph", r[2]); n.setAttribute("role", "textbox"); n.setAttribute("aria-label", r[1] + " notes");
+    n.textContent = state.n[i] || ""; n.addEventListener("input", function () { state.n[i] = n.innerText; save(); }); td3.appendChild(n);
+    var td4 = document.createElement("td"), b = document.createElement("button");
+    b.type = "button"; b.className = "pill"; var cur = state.s[i] != null ? state.s[i] : r[3];
+    function paint() { b.textContent = STATUS[cur]; b.className = "pill s" + cur; b.setAttribute("aria-label", r[1] + " status: " + STATUS[cur] + ". Click to change."); }
+    b.addEventListener("click", function () { cur = (cur + 1) % STATUS.length; state.s[i] = cur; paint(); save(); });
+    paint(); td4.appendChild(b);
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tbody.appendChild(tr);
+  });
+  document.getElementById("clear").addEventListener("click", function () {
+    if (!confirm("Clear all drafts, notes and statuses?")) return;
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    location.reload();
+  });
+</script>
+</body>
+</html>
